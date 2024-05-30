@@ -86,7 +86,7 @@ class PreparationContext:
         return cpp_extension.CUDAExtension(
                 name=f"{self.project_name}.moe.cuda.sm80.grouped_moe_gemv_Wf8_Af16_Of16_Accf32",
                 sources=[
-                    f"{self.project_name}/moe/cuda/grouped_moe_gemv_Wf8_Af16_Of16_Accf32.cu",
+                    f"{self.project_name}/moe/cuda_sm80/grouped_moe_gemv_Wf8_Af16_Of16_Accf32.cu",
                 ],
                 include_dirs=[
                     f"{self.project_name}/moe/cuda/",
