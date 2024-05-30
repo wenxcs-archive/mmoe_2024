@@ -80,7 +80,7 @@ class PreparationContext:
             logger.info(f"Cutlass repository already exists at {cutlass_path}")
 
     def build_cuda_sm80_grouped_moe_gemv_Wf8_Af16_Of16_Accf32(self):
-        if "cuda+80" not in self.version:
+        if "cuda-80" not in self.version:
             logger.warning("The current device is not compatible with the feature.")
             return None
         return cpp_extension.CUDAExtension(
