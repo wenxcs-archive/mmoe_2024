@@ -35,7 +35,7 @@ using ElementAccumulator = float;                  // <- data type of accumulato
 using ElementComputeEpilogue = ElementAccumulator; // <- data type of epilogue operations
 using ElementInputA = cutlass::half_t;             // <- data type of elements in input matrix A
 using ElementInputB = cutlass::half_t;             // <- data type of elements in input matrix B
-using ElementOutput = float;                       // <- data type of elements in output matrix D
+using ElementOutput = cutlass::half_t;                       // <- data type of elements in output matrix D
 
 // The code section below describes matrix layout of input and output matrices.
 // Column Major for Matrix A, B and C.
