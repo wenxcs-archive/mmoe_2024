@@ -575,7 +575,14 @@ int main(int argc, const char **argv)
   return run(options);
 }
 
-int run_gemm(int m, int k, int n, int index_size)
+int run_gemm(int m, int k, int n, int index_size,
+          ElementInputA* tensor_a_ptr,
+          ElementInputB* tensor_b_ptr,
+          ElementOutput* tensor_c_ptr,
+          ElementOutput* tensor_d_ptr,
+          int* tensor_indices_ptr,
+          int split_k_slices = 1
+        )
 {
   // ================================================================================
   // Initialization setup
@@ -588,31 +595,11 @@ int run_gemm(int m, int k, int n, int index_size)
                                              index_size,
                                              problem_size.k());
 
-  // Initialize tensors using CUTLASS helper functions
-  cutlass::HostTensor<ElementInputA, LayoutInputA> tensor_a(
-      problem_size.mk()); // <- Create matrix A with dimensions M x K
-  cutlass::HostTensor<ElementInputB, LayoutInputB> tensor_b(
-      problem_size.kn()); // <- Create matrix B with dimensions K x N
-  cutlass::HostTensor<ElementOutput, LayoutOutput> tensor_c(
-      problem_size.mn()); // <- Create matrix C with dimensions M x N
-  cutlass::HostTensor<ElementOutput, LayoutOutput> tensor_d_scattered(
-      problem_size.mn()); // <- Create matrix D with dimensions M x N used to store output from
-                          // CUTLASS kernel
-  cutlass::HostTensor<int, LayoutOutput> tensor_indices(
-      {index_size, 1}); // <- Create scatter indices with dimensions val_len x 1
-
-  ElementInputA* tensor_a_ptr=nullptr;
-  ElementInputB* tensor_b_ptr=nullptr;
-  ElementOutput* tensor_c_ptr=nullptr;
-  ElementOutput* tensor_d_ptr=nullptr;
-  int* tensor_indices_ptr=nullptr;
-
   // Initialize alpha/beta for dot product computation
   ElementComputeEpilogue alpha = ElementComputeEpilogue(1);
   ElementComputeEpilogue beta = ElementComputeEpilogue(1);
 
   // Split K dimension into 1 partitions
-  int split_k_slices = 1;
 
   auto tensor_a_layout = LayoutInputA::packed(problem_size.mk());
   auto tensor_b_layout = LayoutInputA::packed(problem_size.nk());
