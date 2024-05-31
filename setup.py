@@ -85,7 +85,7 @@ class PreparationContext:
             logger.warning("The current device is not compatible with the feature.")
             return None
         return cpp_extension.CUDAExtension(
-                name=f"{self.project_name}.moe.cuda.sm80.moe_gemv_Wf8_Af16_Of16_Accf32",
+                name=f"{self.project_name}.moe.cuda_sm80.moe_gemv_Wf8_Af16_Of16_Accf32",
                 sources=[
                     f"{self.project_name}/moe/cuda_sm80/moe_gemv_Wf8_Af16_Of16_Accf32.cu",
                 ],

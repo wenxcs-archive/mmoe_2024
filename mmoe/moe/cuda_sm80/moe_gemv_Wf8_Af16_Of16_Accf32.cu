@@ -193,3 +193,26 @@ int run_gemm(int m, int k, int n, int index_size,
 
 
 #include "torch/extension.h"
+
+
+void gemv(torch::Tensor W, torch::Tensor act, torch::Tensor outp, torch::Tensor index)
+{
+  int m = W.size(0);
+  int n = act.size(0);
+  int k = W.size(1);
+  int index_size = index.size(0);
+
+  run_gemm(m, n, k, index_size, 
+    (ElementInputA*)W.data_ptr(), 
+    (ElementInputB*)act.data_ptr(),
+    (ElementOutput*)outp.data_ptr(),
+    (ElementOutput*)outp.data_ptr(),
+    (int*)index.data_ptr()
+  );
+}
+
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
+{
+  m.def("gemv", &gemv, "");
+}
