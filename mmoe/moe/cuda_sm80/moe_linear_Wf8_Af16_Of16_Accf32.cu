@@ -40,9 +40,9 @@ using ElementOutput = cutlass::half_t;                       // <- data type of 
 // The code section below describes matrix layout of input and output matrices.
 // Column Major for Matrix A, B and C.
 //
-using LayoutInputA = cutlass::layout::ColumnMajor;
-using LayoutInputB = cutlass::layout::ColumnMajor;
-using LayoutOutput = cutlass::layout::ColumnMajor;
+using LayoutInputA = cutlass::layout::RowMajor;
+using LayoutInputB = cutlass::layout::RowMajor;
+using LayoutOutput = cutlass::layout::RowMajor;
 
 // This code section describes whether you want to use tensor cores or regular SIMT cores on GPU SM
 using MMAOp = cutlass::arch::OpClassTensorOp;
@@ -144,6 +144,8 @@ int run_gemm(int m, int k, int n, int index_size,
   auto tensor_b_layout = LayoutInputA::packed(problem_size.nk());
   auto tensor_c_layout = LayoutInputA::packed(problem_size.mn());
   auto tensor_d_layout = LayoutInputA::packed(problem_size.mn());
+
+  static_assert(std::is_same<Gemm::Arguments::debug_flag, int>::value, "Failed");
 
   // Create a tuple of gemm kernel arguments. This is later passed as arguments to launch
   // instantiated CUTLASS kernel

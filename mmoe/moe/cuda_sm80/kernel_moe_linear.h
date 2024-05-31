@@ -160,6 +160,8 @@ public:
     int num_valid_tokens;
     int topk;
 
+    using debug_flag = int;
+
     //
     // Methods
     //
