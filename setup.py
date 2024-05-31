@@ -49,7 +49,8 @@ class PreparationContext:
 
     def get_device_arch(self):
         if torch.cuda.is_available():
-            return torch.cuda.get_device_capability()
+            arc = torch.cuda.get_device_capability()
+            return arc[0] * 10 + arc[1]
         else:
             return 0
 
