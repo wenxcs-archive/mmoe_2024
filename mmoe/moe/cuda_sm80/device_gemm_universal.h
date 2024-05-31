@@ -291,7 +291,7 @@ class mGemmUniversal<ElementA_, LayoutA_, ElementB_, LayoutB_, ElementC_,
   static ComplexTransform const kTransformA = TransformA;
   static ComplexTransform const kTransformB = TransformB;
 
-  using UnderlyingOperator = typename GemmUniversal< 
+  using UnderlyingOperator = typename mGemmUniversal< 
     ElementB,
     typename layout::LayoutTranspose<LayoutB>::type,
     ElementA,
@@ -333,7 +333,7 @@ private:
 public:
 
   /// Constructs the GEMM.
-  GemmUniversal() { }
+  mGemmUniversal() { }
 
   /// Helper to construct a transposed equivalent for the underying GEMM operator
   static Arguments to_underlying_arguments(Arguments const &args) {

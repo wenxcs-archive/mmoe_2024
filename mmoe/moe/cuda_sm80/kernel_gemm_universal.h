@@ -20,6 +20,15 @@ namespace cutlass {
 namespace gemm {
 namespace kernel {
 
+template <
+  class ProblemShapeOrThreadblockMma_, // (m, n, k) or (m, n, k, l)
+  class CollectiveMainloopOrEpilogue_,
+  class CollectiveEpilogueOrThreadblockSwizzle_,
+  class TileScheduler_ = void,
+  class Enable = void
+>
+class mGemmUniversal;
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 template <
@@ -27,7 +36,7 @@ template <
   typename Epilogue_,             ///! Epilogue
   typename ThreadblockSwizzle_    ///! Threadblock swizzling function
 >
-class GemmUniversal<
+class mGemmUniversal<
   Mma_,
   Epilogue_,
   ThreadblockSwizzle_,
@@ -422,7 +431,7 @@ public:
     Params const &params,
     SharedStorage &shared_storage)
   {
-    GemmUniversal op;
+    mGemmUniversal op;
     op(params, shared_storage);
   }
 
