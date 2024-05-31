@@ -1,6 +1,10 @@
 {
     "files.associations": {
         "*.cu": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "bitset": "cpp",
+        "memory": "cpp",
+        "random": "cpp",
+        "cmath": "cpp"
     }
 }

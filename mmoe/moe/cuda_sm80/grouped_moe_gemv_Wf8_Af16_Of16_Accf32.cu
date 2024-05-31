@@ -84,6 +84,7 @@
 #include "cutlass/util/tensor_view_io.h"
 #include "helper.h"
 
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Result structure
@@ -572,4 +573,100 @@ int main(int argc, const char **argv)
   }
 
   return run(options);
+}
+
+int run_gemm(int m, int k, int n, int index_size)
+{
+  // ================================================================================
+  // Initialization setup
+
+  // Create a tuple of problem size for matrix multiplication
+  cutlass::gemm::GemmCoord problem_size({m,k,n});
+
+  // Create a tuple of problem size for matrix multiplication
+  cutlass::gemm::GemmCoord problem_size_real(problem_size.m(),
+                                             index_size,
+                                             problem_size.k());
+
+  // Initialize tensors using CUTLASS helper functions
+  cutlass::HostTensor<ElementInputA, LayoutInputA> tensor_a(
+      problem_size.mk()); // <- Create matrix A with dimensions M x K
+  cutlass::HostTensor<ElementInputB, LayoutInputB> tensor_b(
+      problem_size.kn()); // <- Create matrix B with dimensions K x N
+  cutlass::HostTensor<ElementOutput, LayoutOutput> tensor_c(
+      problem_size.mn()); // <- Create matrix C with dimensions M x N
+  cutlass::HostTensor<ElementOutput, LayoutOutput> tensor_d_scattered(
+      problem_size.mn()); // <- Create matrix D with dimensions M x N used to store output from
+                          // CUTLASS kernel
+  cutlass::HostTensor<int, LayoutOutput> tensor_indices(
+      {index_size, 1}); // <- Create scatter indices with dimensions val_len x 1
+
+  ElementInputA* tensor_a_ptr=nullptr;
+  ElementInputB* tensor_b_ptr=nullptr;
+  ElementOutput* tensor_c_ptr=nullptr;
+  ElementOutput* tensor_d_ptr=nullptr;
+  int* tensor_indices_ptr=nullptr;
+
+  // Initialize alpha/beta for dot product computation
+  ElementComputeEpilogue alpha = ElementComputeEpilogue(1);
+  ElementComputeEpilogue beta = ElementComputeEpilogue(1);
+
+  // Split K dimension into 1 partitions
+  int split_k_slices = 1;
+
+  auto tensor_a_layout = LayoutInputA::packed(problem_size.mk());
+  auto tensor_b_layout = LayoutInputA::packed(problem_size.nk());
+  auto tensor_c_layout = LayoutInputA::packed(problem_size.mn());
+  auto tensor_d_layout = LayoutInputA::packed(problem_size.mn());
+
+  // Create a tuple of gemm kernel arguments. This is later passed as arguments to launch
+  // instantiated CUTLASS kernel
+  typename Gemm::Arguments arguments{
+      cutlass::gemm::GemmUniversalMode::kGemm,
+      problem_size_real,                // <- problem size of matrix multiplication
+      split_k_slices,                   // <- k-dimension split factor
+      {alpha, beta},                    // <- alpha, beta
+      tensor_a_ptr,           // <- reference to matrix A on device
+      tensor_b_ptr,           // <- reference to matrix B on device
+      tensor_c_ptr,           // <- reference to matrix C on device
+      tensor_d_ptr, // <- reference to matrix D on device
+      tensor_a_layout.capacity(problem_size.mk()),
+      tensor_b_layout.capacity(cutlass::make_Coord(index_size, problem_size.k())),
+      tensor_c_layout.capacity(problem_size.mn()),
+      tensor_d_layout.capacity(problem_size.mn()),
+      tensor_a_layout.stride(),
+      tensor_b_layout.stride(),
+      tensor_c_layout.stride(),
+      tensor_d_layout.stride(),
+      nullptr,                       // <- pointer to index vector to gather A on device
+      tensor_indices_ptr,  // <- pointer to index vector to gather B on device
+      tensor_indices_ptr}; // <- pointer to index vector to scatter D on device
+
+  // Using the arguments, query for extra workspace required for matrix multiplication computation
+  size_t workspace_size = Gemm::get_workspace_size(arguments);
+
+  // Allocate workspace memory
+  cutlass::device_memory::allocation<uint8_t> workspace(workspace_size);
+
+  // Instantiate CUTLASS kernel depending on templates
+  Gemm gemm_op;
+
+  // Check the problem size is supported or not
+  cutlass::Status status = gemm_op.can_implement(arguments);
+  CUTLASS_CHECK(status);
+
+  // Initialize CUTLASS kernel with arguments and workspace pointer
+  status = gemm_op.initialize(arguments, workspace.get());
+  CUTLASS_CHECK(status);
+
+  // CPU reference calculation
+  cutlass::HostTensor<ElementOutput, LayoutOutput> tensor_d_ref(problem_size.mn());
+  cutlass::reference::host::TensorFill(
+      tensor_d_ref.host_view()); // <- Fill matrix D on host with zeros
+
+  status = gemm_op();
+  cudaDeviceSynchronize();
+  CUTLASS_CHECK(status);
+
+  return 0;
 }
