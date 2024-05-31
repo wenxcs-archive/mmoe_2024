@@ -13,9 +13,10 @@
 
 #include "cutlass/cutlass.h"
 
-//#include "cutlass/gemm/device/gemm_universal.h"
-#include "device_gemm_universal.h"
+#include "kernel_default_gemm_universal.h"
 
+#include "cutlass/cutlass.h"
+#include "cutlass/gemm/device/gemm_universal.h"
 #include "cutlass/epilogue/thread/linear_combination.h"
 #include "cutlass/util/host_tensor.h"
 #include "cutlass/util/command_line.h"
@@ -25,7 +26,6 @@
 #include "cutlass/util/reference/host/tensor_fill.h"
 #include "cutlass/util/tensor_view_io.h"
 #include "helper.h"
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -82,7 +82,7 @@ constexpr int NumStages = 5;
 // Ampere -> 4/5
 // Turing -> 2
 
-using Gemm = cutlass::gemm::device::mGemmUniversal<ElementInputA,
+using Gemm = cutlass::gemm::device::GemmUniversal<ElementInputA,
                                                   LayoutInputA,
                                                   ElementInputB,
                                                   LayoutInputB,
@@ -106,7 +106,7 @@ using Gemm = cutlass::gemm::device::mGemmUniversal<ElementInputA,
                                                   true,  /*GatherB*/
                                                   true   /*ScatterD*/
                                                   >;
-
+// ================================================================================
 
 int run_gemm(int m, int k, int n, int index_size,
           ElementInputA* tensor_a_ptr,
@@ -114,6 +114,12 @@ int run_gemm(int m, int k, int n, int index_size,
           ElementOutput* tensor_c_ptr,
           ElementOutput* tensor_d_ptr,
           int* tensor_indices_ptr,
+          ElementInputA* W_scale_ptr,
+          ElementInputA* topk_weights_ptr,
+          int* expert_ids_ptr,
+          int* num_tokens_post_padded_ptr,
+          int num_valid_tokens,
+          int topk,
           int split_k_slices = 1
         )
 {
@@ -160,7 +166,14 @@ int run_gemm(int m, int k, int n, int index_size,
       tensor_d_layout.stride(),
       nullptr,                       // <- pointer to index vector to gather A on device
       tensor_indices_ptr,  // <- pointer to index vector to gather B on device
-      tensor_indices_ptr}; // <- pointer to index vector to scatter D on device
+      tensor_indices_ptr//,
+      W_scale_ptr,
+      topk_weights_ptr,
+      expert_ids_ptr,
+      num_tokens_post_padded_ptr,
+      num_valid_tokens,
+      topk
+      }; // <- pointer to index vector to scatter D on device
 
   // Using the arguments, query for extra workspace required for matrix multiplication computation
   size_t workspace_size = Gemm::get_workspace_size(arguments);
@@ -179,13 +192,7 @@ int run_gemm(int m, int k, int n, int index_size,
   status = gemm_op.initialize(arguments, workspace.get());
   CUTLASS_CHECK(status);
 
-  // CPU reference calculation
-  cutlass::HostTensor<ElementOutput, LayoutOutput> tensor_d_ref(problem_size.mn());
-  cutlass::reference::host::TensorFill(
-      tensor_d_ref.host_view()); // <- Fill matrix D on host with zeros
-
   status = gemm_op();
-  cudaDeviceSynchronize();
   CUTLASS_CHECK(status);
 
   return 0;
@@ -195,7 +202,19 @@ int run_gemm(int m, int k, int n, int index_size,
 #include "torch/extension.h"
 
 
-void gemv(torch::Tensor W, torch::Tensor act, torch::Tensor outp, torch::Tensor index)
+void gemv(
+  torch::Tensor W,
+  torch::Tensor act,
+  torch::Tensor outp,
+  torch::Tensor index,
+  torch::Tensor W_scale,
+  torch::Tensor topk_weights,
+  torch::Tensor expert_ids,
+  torch::Tensor num_tokens_post_padded,
+  int num_valid_tokens,
+  int topk,
+  int split_k
+)
 {
   int m = W.size(0);
   int n = act.size(0);
@@ -207,7 +226,14 @@ void gemv(torch::Tensor W, torch::Tensor act, torch::Tensor outp, torch::Tensor 
     (ElementInputB*)act.data_ptr(),
     (ElementOutput*)outp.data_ptr(),
     (ElementOutput*)outp.data_ptr(),
-    (int*)index.data_ptr()
+    (int*)index.data_ptr(),
+    (ElementInputA*)W_scale.data_ptr(),
+    (ElementInputA*)topk_weights.data_ptr(),
+    (int*)expert_ids.data_ptr(),
+    (int*)num_tokens_post_padded.data_ptr(),
+    num_valid_tokens,
+    topk,
+    split_k
   );
 }
 

@@ -1,3 +1,38 @@
+/***************************************************************************************************
+ * Copyright (c) 2017 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ **************************************************************************************************/
+
+/*! \file
+    \brief
+*/
+
 #pragma once
 
 #include "cutlass/cutlass.h"
@@ -27,7 +62,7 @@ template <
   class TileScheduler_ = void,
   class Enable = void
 >
-class mGemmUniversal;
+class MGemmUniversal;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -36,7 +71,7 @@ template <
   typename Epilogue_,             ///! Epilogue
   typename ThreadblockSwizzle_    ///! Threadblock swizzling function
 >
-class mGemmUniversal<
+class MGemmUniversal<
   Mma_,
   Epilogue_,
   ThreadblockSwizzle_,
@@ -117,6 +152,14 @@ public:
     int const * ptr_gather_B_indices;
     int const * ptr_scatter_D_indices;
 
+    // MOE Related
+    void * ptr_A_scale; // half[expert=16]
+    void * ptr_topk_weights; // half [B.size(0), topk2]
+    int * ptr_expert_ids; // int [c_div(index_size, tile_n)]
+    int * num_tokens_post_padded_ptr; // int
+    int num_valid_tokens;
+    int topk;
+
     //
     // Methods
     //
@@ -125,7 +168,11 @@ public:
       ptr_A(nullptr), ptr_B(nullptr), ptr_C(nullptr), ptr_D(nullptr),
       ptr_gather_A_indices(nullptr),
       ptr_gather_B_indices(nullptr),
-      ptr_scatter_D_indices(nullptr)
+      ptr_scatter_D_indices(nullptr),
+      ptr_A_scale(nullptr),
+      ptr_topk_weights(nullptr),
+      ptr_expert_ids(nullptr),
+      num_tokens_post_padded_ptr(nullptr)
     {}
 
     /// constructs an arguments structure
@@ -148,7 +195,14 @@ public:
       typename LayoutC::Stride stride_d,
       int const *ptr_gather_A_indices = nullptr,
       int const *ptr_gather_B_indices = nullptr,
-      int const *ptr_scatter_D_indices = nullptr)
+      int const *ptr_scatter_D_indices = nullptr,
+      void * ptr_A_scale = nullptr,
+      void * ptr_topk_weights = nullptr,
+      int * ptr_expert_ids = nullptr,
+      int * num_tokens_post_padded_ptr = nullptr,
+      int num_valid_tokens = 0,
+      int topk = 0
+      )
     :
       UniversalArgumentsBase(mode, problem_size, batch_count, batch_stride_D),
       epilogue(epilogue),
@@ -156,7 +210,13 @@ public:
       batch_stride_A(batch_stride_A), batch_stride_B(batch_stride_B), batch_stride_C(batch_stride_C),
       stride_a(stride_a), stride_b(stride_b), stride_c(stride_c), stride_d(stride_d),
       ptr_gather_A_indices(ptr_gather_A_indices), ptr_gather_B_indices(ptr_gather_B_indices),
-      ptr_scatter_D_indices(ptr_scatter_D_indices)
+      ptr_scatter_D_indices(ptr_scatter_D_indices),
+      ptr_A_scale(ptr_A_scale),
+      ptr_topk_weights(ptr_topk_weights),
+      ptr_expert_ids(ptr_expert_ids),
+      num_tokens_post_padded_ptr(num_tokens_post_padded_ptr),
+      num_valid_tokens(num_valid_tokens),
+      topk(topk)
     {
       lda = 0;
       ldb = 0;
@@ -185,7 +245,13 @@ public:
       typename LayoutC::Stride::LongIndex ldd,
       int const *ptr_gather_A_indices = nullptr,
       int const *ptr_gather_B_indices = nullptr,
-      int const *ptr_scatter_D_indices = nullptr
+      int const *ptr_scatter_D_indices = nullptr,
+      void * ptr_A_scale = nullptr,
+      void * ptr_topk_weights = nullptr,
+      int * ptr_expert_ids = nullptr,
+      int * num_tokens_post_padded_ptr = nullptr,
+      int num_valid_tokens = 0,
+      int topk = 0
     ):
       UniversalArgumentsBase(mode, problem_size, batch_count, batch_stride_D),
       epilogue(epilogue),
@@ -193,7 +259,13 @@ public:
       batch_stride_A(batch_stride_A), batch_stride_B(batch_stride_B), batch_stride_C(batch_stride_C),
       lda(lda), ldb(ldb), ldc(ldc), ldd(ldd),
       ptr_gather_A_indices(ptr_gather_A_indices), ptr_gather_B_indices(ptr_gather_B_indices),
-      ptr_scatter_D_indices(ptr_scatter_D_indices)
+      ptr_scatter_D_indices(ptr_scatter_D_indices),
+      ptr_A_scale(ptr_A_scale),
+      ptr_topk_weights(ptr_topk_weights),
+      ptr_expert_ids(ptr_expert_ids),
+      num_tokens_post_padded_ptr(num_tokens_post_padded_ptr),
+      num_valid_tokens(num_valid_tokens),
+      topk(topk)
     {
       stride_a = make_Coord(lda);
       stride_b = make_Coord(ldb);
@@ -205,6 +277,9 @@ public:
     /// Returns arguments for the transposed problem
     Arguments transposed_problem() const
     {
+      // Not support this method.
+      CUTLASS_ASSERT(false);
+
       Arguments args(*this);
 
       std::swap(args.problem_size.m(), args.problem_size.n());
@@ -266,6 +341,14 @@ public:
     int * ptr_gather_B_indices;
     int * ptr_scatter_D_indices;
 
+    // MOE Related
+    void * ptr_A_scale; // half[expert=16]
+    void * ptr_topk_weights; // half [B.size(0), topk2]
+    int * ptr_expert_ids; // int [c_div(index_size, tile_n)]
+    int * num_tokens_post_padded_ptr; // int
+    int num_valid_tokens;
+    int topk;
+
     //
     // Host dispatch API
     //
@@ -294,7 +377,13 @@ public:
       batch_stride_C(args.batch_stride_C),
       ptr_gather_A_indices(const_cast<int *>(args.ptr_gather_A_indices)),
       ptr_gather_B_indices(const_cast<int *>(args.ptr_gather_B_indices)),
-      ptr_scatter_D_indices(const_cast<int *>(args.ptr_scatter_D_indices))
+      ptr_scatter_D_indices(const_cast<int *>(args.ptr_scatter_D_indices)),
+      ptr_A_scale((args.ptr_A_scale)),
+      ptr_topk_weights((args.ptr_topk_weights)),
+      ptr_expert_ids((args.ptr_expert_ids)),
+      num_tokens_post_padded_ptr((args.num_tokens_post_padded_ptr)),
+      num_valid_tokens(args.num_valid_tokens),
+      topk(args.topk)
     {}
 
     /// Lightweight update given a subset of arguments.
@@ -317,6 +406,13 @@ public:
       ptr_gather_B_indices = const_cast<int *>(args.ptr_gather_B_indices);
       ptr_scatter_D_indices = const_cast<int *>(args.ptr_scatter_D_indices);
 
+      ptr_A_scale = args.ptr_A_scale;
+      ptr_topk_weights = args.ptr_topk_weights;
+      ptr_expert_ids = args.ptr_expert_ids;
+      num_tokens_post_padded_ptr = args.num_tokens_post_padded_ptr;
+      num_valid_tokens = args.num_valid_tokens;
+      topk = args.topk;
+      
       output_op = args.epilogue;
     }
 
@@ -431,7 +527,7 @@ public:
     Params const &params,
     SharedStorage &shared_storage)
   {
-    mGemmUniversal op;
+    MGemmUniversal op;
     op(params, shared_storage);
   }
 
@@ -459,6 +555,11 @@ public:
 
     int offset_k = 0;
     int problem_size_k = params.problem_size.k();
+
+    // offset for ptr_A is different because of the 16 experts
+    // the default address is #0 expert
+    int W_block_id = threadblock_tile_offset.m();
+
 
     ElementA *ptr_A = static_cast<ElementA *>(params.ptr_A);
     ElementB *ptr_B = static_cast<ElementB *>(params.ptr_B);
