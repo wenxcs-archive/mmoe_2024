@@ -166,7 +166,7 @@ int run_gemm(int m, int k, int n, int index_size,
       tensor_d_layout.stride(),
       nullptr,                       // <- pointer to index vector to gather A on device
       tensor_indices_ptr,  // <- pointer to index vector to gather B on device
-      tensor_indices_ptr//,
+      tensor_indices_ptr,
       W_scale_ptr,
       topk_weights_ptr,
       expert_ids_ptr,
