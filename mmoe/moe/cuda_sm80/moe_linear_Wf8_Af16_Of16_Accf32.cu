@@ -202,7 +202,7 @@ int run_gemm(int m, int k, int n, int index_size,
 #include "torch/extension.h"
 
 
-void gemv(
+void moe_linear(
   torch::Tensor W,
   torch::Tensor act,
   torch::Tensor outp,
@@ -240,5 +240,5 @@ void gemv(
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
-  m.def("gemv", &gemv, "");
+  m.def("moe_linear", &moe_linear, "");
 }

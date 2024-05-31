@@ -1,6 +1,6 @@
 #pragma once
 #include "cutlass/gemm/kernel/default_gemm_universal.h"
-#include "kernel_gemm_universal.h"
+#include "kernel_moe_linear.h"
 
 namespace cutlass {
 namespace gemm {
