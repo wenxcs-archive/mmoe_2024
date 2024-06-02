@@ -153,7 +153,7 @@ public:
     int const * ptr_scatter_D_indices;
 
     // MOE Related
-    void * ptr_A_scale; // half[expert=16]
+    void * ptr_W_scale; // half[expert=16]
     void * ptr_topk_weights; // half [B.size(0), topk2]
     int * ptr_expert_ids; // int [c_div(index_size, tile_n)]
     int * num_tokens_post_padded_ptr; // int
@@ -171,7 +171,7 @@ public:
       ptr_gather_A_indices(nullptr),
       ptr_gather_B_indices(nullptr),
       ptr_scatter_D_indices(nullptr),
-      ptr_A_scale(nullptr),
+      ptr_W_scale(nullptr),
       ptr_topk_weights(nullptr),
       ptr_expert_ids(nullptr),
       num_tokens_post_padded_ptr(nullptr)
@@ -198,7 +198,7 @@ public:
       int const *ptr_gather_A_indices = nullptr,
       int const *ptr_gather_B_indices = nullptr,
       int const *ptr_scatter_D_indices = nullptr,
-      void * ptr_A_scale = nullptr,
+      void * ptr_W_scale = nullptr,
       void * ptr_topk_weights = nullptr,
       int * ptr_expert_ids = nullptr,
       int * num_tokens_post_padded_ptr = nullptr,
@@ -213,7 +213,7 @@ public:
       stride_a(stride_a), stride_b(stride_b), stride_c(stride_c), stride_d(stride_d),
       ptr_gather_A_indices(ptr_gather_A_indices), ptr_gather_B_indices(ptr_gather_B_indices),
       ptr_scatter_D_indices(ptr_scatter_D_indices),
-      ptr_A_scale(ptr_A_scale),
+      ptr_W_scale(ptr_W_scale),
       ptr_topk_weights(ptr_topk_weights),
       ptr_expert_ids(ptr_expert_ids),
       num_tokens_post_padded_ptr(num_tokens_post_padded_ptr),
@@ -248,7 +248,7 @@ public:
       int const *ptr_gather_A_indices = nullptr,
       int const *ptr_gather_B_indices = nullptr,
       int const *ptr_scatter_D_indices = nullptr,
-      void * ptr_A_scale = nullptr,
+      void * ptr_W_scale = nullptr,
       void * ptr_topk_weights = nullptr,
       int * ptr_expert_ids = nullptr,
       int * num_tokens_post_padded_ptr = nullptr,
@@ -262,7 +262,7 @@ public:
       lda(lda), ldb(ldb), ldc(ldc), ldd(ldd),
       ptr_gather_A_indices(ptr_gather_A_indices), ptr_gather_B_indices(ptr_gather_B_indices),
       ptr_scatter_D_indices(ptr_scatter_D_indices),
-      ptr_A_scale(ptr_A_scale),
+      ptr_W_scale(ptr_W_scale),
       ptr_topk_weights(ptr_topk_weights),
       ptr_expert_ids(ptr_expert_ids),
       num_tokens_post_padded_ptr(num_tokens_post_padded_ptr),
@@ -344,7 +344,7 @@ public:
     int * ptr_scatter_D_indices;
 
     // MOE Related
-    void * ptr_A_scale; // half[expert=16]
+    void * ptr_W_scale; // half[expert=16]
     void * ptr_topk_weights; // half [B.size(0), topk2]
     int * ptr_expert_ids; // int [c_div(index_size, tile_n)]
     int * num_tokens_post_padded_ptr; // int
@@ -380,7 +380,7 @@ public:
       ptr_gather_A_indices(const_cast<int *>(args.ptr_gather_A_indices)),
       ptr_gather_B_indices(const_cast<int *>(args.ptr_gather_B_indices)),
       ptr_scatter_D_indices(const_cast<int *>(args.ptr_scatter_D_indices)),
-      ptr_A_scale((args.ptr_A_scale)),
+      ptr_W_scale((args.ptr_W_scale)),
       ptr_topk_weights((args.ptr_topk_weights)),
       ptr_expert_ids((args.ptr_expert_ids)),
       num_tokens_post_padded_ptr((args.num_tokens_post_padded_ptr)),
@@ -408,7 +408,7 @@ public:
       ptr_gather_B_indices = const_cast<int *>(args.ptr_gather_B_indices);
       ptr_scatter_D_indices = const_cast<int *>(args.ptr_scatter_D_indices);
 
-      ptr_A_scale = args.ptr_A_scale;
+      ptr_W_scale = args.ptr_W_scale;
       ptr_topk_weights = args.ptr_topk_weights;
       ptr_expert_ids = args.ptr_expert_ids;
       num_tokens_post_padded_ptr = args.num_tokens_post_padded_ptr;
@@ -438,6 +438,13 @@ public:
     cutlass::gemm::GemmCoord const & problem_size)
   {
     CUTLASS_TRACE_HOST("GemmUniversal::can_implement()");
+
+    if(cute::is_same<LayoutA, layout::RowMajor>::value)
+      return Status::kErrorNotSupported;
+    if(cute::is_same<LayoutB, layout::RowMajor>::value)
+      return Status::kErrorNotSupported;
+    if(cute::is_same<LayoutC, layout::RowMajor>::value)
+      return Status::kErrorNotSupported;
 
     static int const kAlignmentA = (cute::is_same<LayoutA,
                                                       layout::ColumnMajorInterleaved<32>>::value)
