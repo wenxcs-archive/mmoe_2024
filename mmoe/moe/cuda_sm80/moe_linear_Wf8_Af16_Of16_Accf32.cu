@@ -41,8 +41,8 @@ using ElementOutput = cutlass::half_t;                       // <- data type of 
 // Column Major for Matrix A, B and C.
 //
 using LayoutInputA = cutlass::layout::RowMajor;
-using LayoutInputB = cutlass::layout::RowMajor;
-using LayoutOutput = cutlass::layout::RowMajor;
+using LayoutInputB = cutlass::layout::ColumnMajor;
+using LayoutOutput = cutlass::layout::ColumnMajor;
 
 // This code section describes whether you want to use tensor cores or regular SIMT cores on GPU SM
 using MMAOp = cutlass::arch::OpClassTensorOp;
