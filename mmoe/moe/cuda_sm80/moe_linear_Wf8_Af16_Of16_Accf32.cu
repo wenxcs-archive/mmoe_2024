@@ -40,7 +40,7 @@ using ElementOutput = cutlass::half_t;                       // <- data type of 
 // The code section below describes matrix layout of input and output matrices.
 // Column Major for Matrix A, B and C.
 //
-using LayoutInputA = cutlass::layout::RowMajor;
+using LayoutInputA = cutlass::layout::ColumnMajor;
 using LayoutInputB = cutlass::layout::ColumnMajor;
 using LayoutOutput = cutlass::layout::ColumnMajor;
 
