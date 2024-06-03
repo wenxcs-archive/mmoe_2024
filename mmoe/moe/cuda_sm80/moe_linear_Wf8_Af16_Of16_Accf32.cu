@@ -108,7 +108,7 @@ using Gemm = cutlass::gemm::device::GemmUniversal<ElementInputA,
                                                   >;
 // ================================================================================
 
-int run_gemm(int m, int k, int n, int index_size,
+int run_gemm(int m, int n, int k, int index_size,
           ElementInputA* tensor_a_ptr,
           ElementInputB* tensor_b_ptr,
           ElementOutput* tensor_c_ptr,
@@ -127,7 +127,7 @@ int run_gemm(int m, int k, int n, int index_size,
   // Initialization setup
 
   // Create a tuple of problem size for matrix multiplication
-  cutlass::gemm::GemmCoord problem_size({m,k,n});
+  cutlass::gemm::GemmCoord problem_size({m,n,k});
 
   // Create a tuple of problem size for matrix multiplication
   cutlass::gemm::GemmCoord problem_size_real(problem_size.m(),
@@ -136,12 +136,12 @@ int run_gemm(int m, int k, int n, int index_size,
 
   // Initialize alpha/beta for dot product computation
   ElementComputeEpilogue alpha = ElementComputeEpilogue(1);
-  ElementComputeEpilogue beta = ElementComputeEpilogue(1);
+  ElementComputeEpilogue beta = ElementComputeEpilogue(0);
 
   // Split K dimension into 1 partitions
 
   auto tensor_a_layout = LayoutInputA::packed(problem_size.mk());
-  auto tensor_b_layout = LayoutInputA::packed(problem_size.nk());
+  auto tensor_b_layout = LayoutInputA::packed(problem_size.kn());
   auto tensor_c_layout = LayoutInputA::packed(problem_size.mn());
   auto tensor_d_layout = LayoutInputA::packed(problem_size.mn());
 
@@ -205,6 +205,11 @@ int run_gemm(int m, int k, int n, int index_size,
 
 
 void moe_linear(
+  int m,
+  int k,
+  int n,
+  int expert_num,
+  int index_size,
   torch::Tensor W,
   torch::Tensor act,
   torch::Tensor outp,
@@ -218,10 +223,8 @@ void moe_linear(
   int split_k
 )
 {
-  int m = W.size(1);
-  int n = act.size(0);
-  int k = W.size(2);
-  int index_size = index.size(0);
+  // W: r [e, k, m] -> c [e, m, k]
+  // act: r [n, k] -> c [k, n]
 
   run_gemm(m, n, k, index_size, 
     (ElementInputA*)W.data_ptr(), 

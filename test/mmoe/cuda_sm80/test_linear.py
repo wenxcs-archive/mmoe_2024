@@ -4,13 +4,16 @@ import mmoe.moe
 import mmoe.moe.cuda_sm80
 import mmoe.moe.cuda_sm80.moe_linear_Wf8_Af16_Of16_Accf32
 
-def test_performance(m=12800, k=4096, n=1024, index_size=256):
+def test_performance(m=12800, k=4096, n=1024, index_size=128):
+    torch.manual_seed(12345)
     expert_num = 16
-    W = torch.randn(expert_num, m, k).half().cuda()
-    act = torch.randn(k, n).half().cuda()
-    outp = torch.zeros(m, n).half().cuda()
+    # inputs
+    w = torch.randn(expert_num, k, m).half().cuda()
+    act = torch.randn(n, k).half().cuda()
+    outp = torch.zeros(index_size, m).half().cuda()
+    # meta
     index = torch.arange(0, index_size, dtype=torch.int32).cuda()
-    w_scale = torch.ones(m).half().cuda()
+    w_scale = torch.ones(expert_num).half().cuda()
     expert_ids = torch.arange(0, 2, dtype=torch.int32).cuda()
     num_tokens_post_padded = torch.tensor(index_size, dtype=torch.int32).cuda()
     num_valid_tokens = index_size
@@ -18,7 +21,8 @@ def test_performance(m=12800, k=4096, n=1024, index_size=256):
     topk_weights = torch.ones(n, topk).half().cuda()
 
     mmoe.moe.cuda_sm80.moe_linear_Wf8_Af16_Of16_Accf32.moe_linear(
-        W,
+        m, k, n, expert_num, index_size,
+        w,
         act,
         outp,
         index,
@@ -32,6 +36,14 @@ def test_performance(m=12800, k=4096, n=1024, index_size=256):
     )
 
     print(outp)
+
+    w = w[0, :, :]
+    a = act[:index_size, :]
+    c = a @ w
+
+    print(c)
+
+    assert torch.allclose(outp, c, atol=1e-3)
 
 
 test_performance()
