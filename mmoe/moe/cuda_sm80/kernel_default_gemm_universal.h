@@ -109,8 +109,8 @@ struct DefaultGemmUniversal<
     true,
     Operator,
     SharedMemoryClear,
-    false,
     true,
+    false,
     true,
     PermuteDLayout,
     PermuteALayout,
@@ -138,6 +138,7 @@ struct DefaultGemmUniversal<
   /// Select kernel by ThreadblockSwizzle's support for StreamkFeature
   using GemmKernel = SelectBase<ThreadblockSwizzle>;
 };
+
 
 }  // namespace kernel
 }  // namespace gemm

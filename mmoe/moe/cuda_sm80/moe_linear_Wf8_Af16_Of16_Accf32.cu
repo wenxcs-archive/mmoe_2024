@@ -218,9 +218,9 @@ void moe_linear(
   int split_k
 )
 {
-  int m = W.size(0);
+  int m = W.size(1);
   int n = act.size(0);
-  int k = W.size(1);
+  int k = W.size(2);
   int index_size = index.size(0);
 
   run_gemm(m, n, k, index_size, 

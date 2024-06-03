@@ -279,9 +279,6 @@ public:
     /// Returns arguments for the transposed problem
     Arguments transposed_problem() const
     {
-      // Not support this method.
-      CUTLASS_ASSERT(false);
-
       Arguments args(*this);
 
       std::swap(args.problem_size.m(), args.problem_size.n());
@@ -439,20 +436,6 @@ public:
   {
     CUTLASS_TRACE_HOST("GemmUniversal::can_implement()");
 
-    if(cute::is_same<LayoutA, layout::RowMajor>::value)
-      return Status::kErrorNotSupported;
-    if(cute::is_same<LayoutB, layout::RowMajor>::value)
-      return Status::kErrorNotSupported;
-    if(cute::is_same<LayoutC, layout::RowMajor>::value)
-      return Status::kErrorNotSupported;
-
-    if(params.ptr_gather_A_indices != nullptr)
-      return Status::kErrorNotSupported;
-    if(params.ptr_gather_B_indices == nullptr)
-      return Status::kErrorNotSupported;
-    if(params.ptr_gather_D_indices != nullptr)
-      return Status::kErrorNotSupported;
-
     static int const kAlignmentA = (cute::is_same<LayoutA,
                                                       layout::ColumnMajorInterleaved<32>>::value)
                                    ? 32
@@ -574,14 +557,14 @@ public:
 
     // offset for ptr_B is different because of the 16 experts
     // the default address is #0 expert
-    int expert_id = ptr_expert_ids[threadblock_tile_offset.m()];
+    int expert_id = params.ptr_expert_ids[threadblock_tile_offset.m()];
     void *expert_ptr_B = params.ptr_B + expert_id * params.batch_stride_B;
-    ElementB scale = static_cast<ElementB>(ptr_W_scale[expert_id]);
+    ElementB scale = static_cast<ElementB>(((ElementB *)params.ptr_W_scale)[expert_id]);
 
     int num_tokens_post_padded = *params.num_tokens_post_padded_ptr;
 
     ElementA *ptr_A = static_cast<ElementA *>(params.ptr_A);
-    ElementB *ptr_B = static_cast<ElementB *>(expert_ptr_B);
+    ElementB *ptr_B = static_cast<ElementB *>(params.ptr_B);
 
     if(params.ptr_topk_weights != nullptr) {
 
