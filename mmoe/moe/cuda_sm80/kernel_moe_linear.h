@@ -542,32 +542,35 @@ public:
   CUTLASS_DEVICE
   void run_with_swizzle(Params const &params, SharedStorage &shared_storage, ThreadblockSwizzle& threadblock_swizzle) {
 
+    // A [m, k]: activation
+    // B [k ,n]: weight
+
     cutlass::gemm::GemmCoord threadblock_tile_offset =
         threadblock_swizzle.get_tile_offset(params.swizzle_log_tile);
 
     // Early exit if CTA is out of range
     if (params.grid_tiled_shape.m() <= threadblock_tile_offset.m() ||
       params.grid_tiled_shape.n() <= threadblock_tile_offset.n()) {
-
       return;
     }
 
     int offset_k = 0;
     int problem_size_k = params.problem_size.k();
 
+    // Read Metadata
     // offset for ptr_B is different because of the 16 experts
     // the default address is #0 expert
     int expert_id = params.ptr_expert_ids[threadblock_tile_offset.m()];
-    void *expert_ptr_B = params.ptr_B + expert_id * params.batch_stride_B;
+    auto expert_ptr_B = static_cast<ElementB *>(params.ptr_B) + expert_id * params.batch_stride_B;
     ElementB scale = static_cast<ElementB>(((ElementB *)params.ptr_W_scale)[expert_id]);
-
     int num_tokens_post_padded = *params.num_tokens_post_padded_ptr;
 
     ElementA *ptr_A = static_cast<ElementA *>(params.ptr_A);
-    ElementB *ptr_B = static_cast<ElementB *>(params.ptr_B);
+    // ElementB *ptr_B = static_cast<ElementB *>(params.ptr_B);
+    ElementB *ptr_B = expert_ptr_B;
 
     if(params.ptr_topk_weights != nullptr) {
-
+      
     }
 
     //
