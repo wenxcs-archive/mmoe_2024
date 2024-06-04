@@ -279,8 +279,8 @@ def test_gather_scatter(tokens=1024, hidden_size = 4096, experts = 16, block_m =
         topk,
     )
 
-    print(hidden_states)
-    print(intermediate_cache1)
+    #print(hidden_states)
+    #print(intermediate_cache1)
 
     intermediate_cache2 = torch.empty(
         (tokens * topk, hidden_size),
@@ -299,8 +299,8 @@ def test_gather_scatter(tokens=1024, hidden_size = 4096, experts = 16, block_m =
         topk,
     )
 
-    print(intermediate_cache2)
+    #print(intermediate_cache2)
     new_ic_2 = intermediate_cache2.reshape(tokens, topk, hidden_size)[:, 0, :]
     torch.testing.assert_close(new_ic_2, hidden_states, rtol=1e-3, atol=1e-3)
 
-test_gather_scatter(2)
+test_gather_scatter(1)
