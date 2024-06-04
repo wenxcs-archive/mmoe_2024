@@ -164,3 +164,8 @@ cython_debug/
 .DS_store
 build/
 cutlass/
+
+
+*.sqlite
+*.nsys-rep
+log.txt

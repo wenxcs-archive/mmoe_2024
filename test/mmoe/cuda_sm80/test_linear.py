@@ -175,7 +175,8 @@ def test_performance_block128(m=12800, k=4096, n=1024, expert_num=1, splitk=1):
     # meta
     index = torch.arange(0, index_size, dtype=torch.int32).cuda()
     w_scale = torch.ones(expert_num).half().cuda()
-    expert_ids = torch.arange(0, expert_num, dtype=torch.int32).cuda()
+    #expert_ids = torch.arange(0, expert_num, dtype=torch.int32).cuda()
+    expert_ids = torch.zeros(expert_num, dtype=torch.int32).cuda()
     num_tokens_post_padded = torch.tensor(index_size, dtype=torch.int32).cuda()
     num_valid_tokens = index_size
     topk = 2
@@ -199,10 +200,11 @@ def test_performance_block128(m=12800, k=4096, n=1024, expert_num=1, splitk=1):
     outps = torch.chunk(outp, expert_num, dim=0)
 
     for i in range(expert_num):
-        w_ = w[i, :, :]
-        a_ = act[i*128:(i+1)*128, :]
+        idx = expert_ids[i].item()
+        w_ = w[idx, :, :]
+        a_ = act[idx*128:(idx+1)*128, :]
         c_ = a_ @ w_
-        #torch.testing.assert_close(outps[i], c_)
+        torch.testing.assert_close(outps[i], c_)
 
     times = 100
     all_time = 0.0

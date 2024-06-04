@@ -2,9 +2,9 @@ import os
 import re
 import sys
 
-for (m, k) in [(4096,12800),]:
+for (m, k) in [(12800,4096),]:
     for e in range(1, 17):
-        for s in [1, 2]:
+        for s in [1]:
             if os.path.exists(f"log.txt"):
                 os.remove(f"log.txt")
             os.system(f"M={m} K={k} EXPERT_NUM={e} SPLITK={s} nsys nvprof python ../test_linear.py > log.txt 2>&1")
