@@ -56,7 +56,6 @@ def moe_gather(
             mask=a_mask,
             other=0.0,
         )
-        # a = tl.zeros_like(a) + pid
         tl.store(c_ptrs, a, mask=c_mask)
 
         a_ptrs += BLOCK_SIZE_K * stride_ak
@@ -92,8 +91,8 @@ def moe_scatter(
 
     offs_k = tl.arange(0, BLOCK_SIZE_K)
     offs_token_id = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
-    a_ptrs = a_ptr + (offs_token_id * stride_am + offs_k[None, :] * stride_ak)
-    a_token_mask = offs_token_id < num_valid_tokens
+    a_ptrs = a_ptr + (offs_token_id[:, None] * stride_am + offs_k[None, :] * stride_ak)
+    a_token_mask = offs_token_id < num_tokens_post_padded
 
     offs_token = tl.load(sorted_token_ids_ptr + offs_token_id)
     w_token_mask = offs_token < num_valid_tokens
@@ -284,12 +283,12 @@ def test_gather_scatter(tokens=1024, hidden_size = 4096, experts = 16, block_m =
     print(intermediate_cache1)
 
     intermediate_cache2 = torch.empty(
-        (tokens, topk, hidden_size),
+        (tokens * topk, hidden_size),
         device=hidden_states.device,
         dtype=hidden_states.dtype,
     )
 
-    invoke_moe_gather(
+    invoke_moe_scatter(
         intermediate_cache1,
         intermediate_cache2,
         sorted_token_ids,
@@ -301,8 +300,7 @@ def test_gather_scatter(tokens=1024, hidden_size = 4096, experts = 16, block_m =
     )
 
     print(intermediate_cache2)
-    
-    #new_ic_2 = torch.sum(intermediate_cache2.reshape(tokens, -1), dim=-1) / 2.0
-    #torch.testing.assert_allclose(new_ic_2, hidden_states, rtol=1e-3, atol=1e-3)
+    new_ic_2 = intermediate_cache2.reshape(tokens, topk, hidden_size)[:, 0, :]
+    torch.testing.assert_close(new_ic_2, hidden_states, rtol=1e-3, atol=1e-3)
 
-test_gather_scatter(tokens=2, hidden_size=64, experts=2, block_m=2, topk=2)
+test_gather_scatter(2)
