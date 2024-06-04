@@ -725,8 +725,11 @@ protected:
     TileWorkDesc &tile_work,
     GemmUniversalMode mode)
   {
+    int expert_id = params.ptr_expert_ids[tile_work.tiled_coord.m()];
+    auto expert_ptr_B = static_cast<ElementB *>(params.ptr_B) + expert_id * params.batch_stride_B;
+
     // The input B matrix
-    ElementB *ptr_B = static_cast<ElementB *>(params.ptr_B);
+    ElementB *ptr_B = static_cast<ElementB *>(expert_ptr_B);
 
     // Update input pointers based on batched/array mode
     if (mode == GemmUniversalMode::kBatched) {
@@ -1178,14 +1181,14 @@ public:
     Params const &params,
     SharedStorage &shared_storage)
   {
-    GemmUniversalStreamk op(params, shared_storage);
+    MGemmUniversalStreamk op(params, shared_storage);
     op();
   }
 
 
   // Constructor
   CUTLASS_DEVICE
-  GemmUniversalStreamk(
+  MGemmUniversalStreamk(
       Params const &params,
       SharedStorage &shared_storage)
     :

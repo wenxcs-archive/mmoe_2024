@@ -1,6 +1,7 @@
 #pragma once
 #include "cutlass/gemm/kernel/default_gemm_universal.h"
 #include "kernel_moe_linear.h"
+#include "kernel_moe_linear_universal_streamk.h"
 
 namespace cutlass {
 namespace gemm {
@@ -129,7 +130,7 @@ struct DefaultGemmUniversal<
   /// Universal kernel with StreamkFeature member type
   template <class SwizzleT>
   class SelectBase<SwizzleT, typename SwizzleT::StreamkFeature> :
-    public kernel::GemmUniversalStreamk<
+    public kernel::MGemmUniversalStreamk<
       typename DefaultGemmKernel::Mma,
       typename DefaultGemmKernel::Epilogue,
       SwizzleT>
